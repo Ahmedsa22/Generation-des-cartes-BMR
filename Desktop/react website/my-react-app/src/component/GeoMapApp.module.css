@@ -1,0 +1,120 @@
+.app, .loginScreen {
+  min-height: 100vh;
+  padding: 24px;
+  background: linear-gradient(to bottom right, #7c3aed, #2563eb, #4338ca);
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.header {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.headerLeft h1 {
+  font-size: 28px;
+  font-weight: bold;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerLeft p {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.headerRight {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.userInfo {
+  color: white;
+  font-weight: 600;
+}
+
+.userRole {
+  margin-left: 10px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.logoutBtn {
+  background-color: #ef4444;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.logoutBtn:hover {
+  background-color: #dc2626;
+}
+
+.content {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 30px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.resetBtn {
+  background-color: #6b7280;
+}
+
+.reportBtn {
+  background-color: #3b82f6;
+}
+
+.exportBtn {
+  background-color: #10b981;
+}
+
+.resetBtn, .reportBtn, .exportBtn {
+  color: white;
+  padding: 12px 24px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.resetBtn:hover {
+  background-color: #4b5563;
+}
+
+.reportBtn:hover {
+  background-color: #2563eb;
+}
+
+.exportBtn:hover {
+  background-color: #059669;
+}
