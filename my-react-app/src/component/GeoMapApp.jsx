@@ -4,8 +4,10 @@ import StatsCards from './Stats/StatsCards';
 import FiltersSection from './Filtres/FiltersSection';
 import MapContainer from './Map/MapContainer';
 import MapLegend from './legend/MapLegend';
-import buildingsData from './buildingsData'; // doit être un FeatureCollection GeoJSON
+import buildingsData from './buildingsData'; 
 import styles from './GeoMapApp.module.css';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const GeoMapApp = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -37,9 +39,18 @@ const GeoMapApp = () => {
 
       // Facteurs de dégradation
       if (
-        filters.facteursDegradation.length > 0 &&
-        !filters.facteursDegradation.includes(props["Expertise_facteur_degradation"])
-      ) return false;
+            filters.facteursDegradation.length > 0
+          ) {
+            const raw = props["Expertise_facteur_degradation"] || '';
+            const valuesInField = raw.split(',').map(v => v.trim());
+
+            const found = filters.facteursDegradation.some(filterValue =>
+              valuesInField.includes(filterValue)
+            );
+
+            if (!found) return false;
+          }
+
 
       // Risque de passage
       if (
@@ -91,13 +102,49 @@ const GeoMapApp = () => {
     });
   };
 
-  const handleExport = (type) => {
-    if (!currentUser?.permissions?.includes('export')) {
-      alert("Vous n'avez pas les permissions pour exporter");
-      return;
+  const handleExport = async (type) => {
+  
+
+  if (type === 'Carte') {
+    try {
+      // Cible la div contenant la carte (ajuste si besoin)
+      const mapElement = document.querySelector(`.${styles.leafletContainer}`);
+      const legendElement = document.querySelector(`.${styles.mapLegend}`); // si elle est indépendante
+
+      // Capture la carte comme image
+      const canvas = await html2canvas(mapElement, { useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [canvas.width, canvas.height + 100] // espace pour le titre/légende
+      });
+
+      // Ajouter un titre
+      pdf.setFontSize(18);
+      pdf.text('Carte des bâtiments menaçant ruine', 20, 30);
+
+      // Ajouter la carte
+      pdf.addImage(imgData, 'PNG', 20, 50);
+
+      // Optionnel : ajouter la légende
+      // Tu peux capturer la légende comme une image séparée si besoin
+      // ou générer un bloc statique ici :
+      pdf.setFontSize(12);
+      pdf.text(`Nombre de bâtiments affichés : ${filteredBuildings.length}`, 20, canvas.height + 80);
+
+      // Télécharger le PDF
+      pdf.save('carte-batiments.pdf');
+    } catch (error) {
+      console.error("Erreur lors de l'export de la carte :", error);
+      alert("Une erreur s'est produite lors de l'export de la carte.");
     }
+  } else {
     alert(`${type} généré avec ${filteredBuildings.length} bâtiments`);
-  };
+      }
+    };
+
 
   if (!currentUser) {
     return (

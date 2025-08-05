@@ -49,40 +49,46 @@ const FiltersSection = ({ filters, onFiltersChange }) => {
         <h3><i className="fas fa-exclamation-triangle"></i> Facteur de Dégradation</h3>
         <div className={styles.checkboxGroup}>
           {[
-            'Vieillissement et absence d’entretien',
-            'Infiltration d’eau',
-            'Défaut structurel',
-            'Autre'
-            // Ajoute ou modifie selon tes valeurs
+            { value: 'Vieillissement et absence d?entretien', label: 'Vieillissement et absence d’entretien' },
+            { value: 'Surexploitation', label: 'Surexploitation' },
+            { value: 'Agression du milieu environnant', label: 'Agression du milieu environnant' },
+            { value: 'Modifications internes ou externes', label: 'Modifications internes ou externes' },
+            { value: 'Autre', label: 'Autre' }
+
           ].map(facteur => (
-            <label key={facteur} className={styles.checkboxItem}>
+            <label key={facteur.value} className={styles.checkboxItem}>
               <input
                 type="checkbox"
-                checked={filters.facteursDegradation.includes(facteur)}
-                onChange={() => handleCheckboxChange('facteursDegradation', facteur)}
+                checked={filters.facteursDegradation.includes(facteur.value)}
+                onChange={() => handleCheckboxChange('facteursDegradation', facteur.value)}
               />
-              <span>{facteur}</span>
+              <span>{facteur.label}</span>
             </label>
           ))}
         </div>
       </div>
 
+
       {/* Risque de Passage */}
       <div className={styles.filterCard}>
         <h3><i className="fas fa-exclamation-circle"></i> Risque de Passage</h3>
         <div className={styles.checkboxGroup}>
-          {['Oui', 'Non'].map(value => (
-            <label key={value} className={styles.checkboxItem}>
+          {[
+            { value: 'Oui', label: 'Oui' },
+            { value: 'Non', label: 'Non' }
+          ].map(option => (
+            <label key={option.value} className={styles.checkboxItem}>
               <input
                 type="checkbox"
-                checked={filters.risquePassage.includes(value)}
-                onChange={() => handleCheckboxChange('risquePassage', value)}
+                checked={filters.risquePassage.includes(option.value)}
+                onChange={() => handleCheckboxChange('risquePassage', option.value)}
               />
-              <span>{value}</span>
+              <span>{option.label}</span>
             </label>
           ))}
         </div>
       </div>
+
 
       {/* Évacuation */}
       <div className={styles.filterCard}>
@@ -101,23 +107,28 @@ const FiltersSection = ({ filters, onFiltersChange }) => {
         </div>
       </div>
 
-      {/* Accessibilité */}
-      <div className={styles.filterCard}>
-        <h3><i className="fas fa-lock"></i> Accessibilité</h3>
-        <div className={styles.checkboxGroup}>
-          {['Accessible', 'Contrainte d\'accès'].map(value => (
-            <label key={value} className={styles.checkboxItem}>
-              <input
-                type="radio"
-                name="isValide"
-                checked={filters.isValide === value}
-                onChange={() => handleRadioChange('isValide', value)}
-              />
-              <span>{value}</span>
-            </label>
-          ))}
-        </div>
+     
+    {/* Accessibilité */}
+    <div className={styles.filterCard}>
+      <h3><i className="fas fa-lock"></i> Accessibilité</h3>
+      <div className={styles.checkboxGroup}>
+        {[
+          { value: 'Accessible', label: 'Accessible' },
+          { value: 'Contrainte d?acc s', label: 'Contrainte d’accès' }
+        ].map(option => (
+          <label key={option.value} className={styles.checkboxItem}>
+            <input
+              type="radio"
+              name="isValide"
+              checked={filters.isValide === option.value}
+              onChange={() => handleRadioChange('isValide', option.value)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
       </div>
+    </div>
+
 
       {/* Plage de Dates */}
       <div className={styles.filterCard}>

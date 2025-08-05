@@ -8,10 +8,9 @@ const MapLegend = () => (
     </h4>
     <div className={styles.legendGrid}>
       {[
-        { color: '#28a745', label: 'B1 - Bon état' },
-        { color: '#ffc107', label: 'B2 - Dégradé' },
-        { color: '#dc3545', label: 'B3 - Menaçant ruine' },
-        { color: '#17a2b8', label: 'En traitement' }
+        { color: '#28a745', label: 'Confortement (B3)' },
+        { color: '#595e66ff', label: 'Démolition partielle (B2)' },
+        { color: '#dc3545', label: 'Démolition totale (B1)' }
       ].map((item, index) => (
         <div key={index} className={styles.legendItem}>
           <div

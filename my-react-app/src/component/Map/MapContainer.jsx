@@ -5,7 +5,7 @@ import proj4 from 'proj4';
 import styles from './MapContainer.module.css';
 
 // Définition EPSG:26191 → WGS84
-proj4.defs('EPSG:26191', '+proj=lcc +lat_1=33.3 +lat_2=35.7 +lat_0=32.5 +lon_0=-5 +x_0=500000 +y_0=300000 +datum=merchich +units=m +no_defs');
+proj4.defs('EPSG:26191', '+proj=lcc +lat_1=33.3 +lat_2=35.7 +lat_0=32.5 +lon_0=-5 +x_0=5 +y_0=300000 +ellps=clrk80 +towgs84=-73,46,-86 +units=m +no_defs');
 
 const MapContainer = ({ buildings }) => {
   const mapRef = useRef(null);
