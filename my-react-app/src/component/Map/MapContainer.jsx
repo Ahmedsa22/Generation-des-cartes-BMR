@@ -13,14 +13,29 @@ const MapContainer = ({ buildings }) => {
   const geoJsonLayerRef = useRef(null);
 
   useEffect(() => {
-    if (mapRef.current && !mapInstanceRef.current) {
-      mapInstanceRef.current = L.map(mapRef.current).setView([33.5731, -7.5898], 13);
+  if (mapRef.current && !mapInstanceRef.current) {
+    mapInstanceRef.current = L.map(mapRef.current).setView([33.5731, -7.5898], 13);
+    window.mapInstanceRef = mapInstanceRef.current;
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(mapInstanceRef.current);
-    }
-  }, []);
+    const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    });
+
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '© ESRI World Imagery'
+    });
+
+    streetLayer.addTo(mapInstanceRef.current);
+
+    L.control.layers(
+      {
+        "Plan (OSM)": streetLayer,
+        "Satellite (ESRI)": satelliteLayer
+      }
+    ).addTo(mapInstanceRef.current);
+  }
+}, []);
+
 
   useEffect(() => {
     if (mapInstanceRef.current) {
@@ -101,7 +116,8 @@ const MapContainer = ({ buildings }) => {
 
   return (
     <div className={styles.mapContainer}>
-      <div ref={mapRef} className={styles.leafletContainer} />
+      <div ref={mapRef} id="map-export" className={styles.leafletContainer} />
+
     </div>
   );
 };

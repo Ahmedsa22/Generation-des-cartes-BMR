@@ -8,6 +8,7 @@ import buildingsData from './buildingsData';
 import styles from './GeoMapApp.module.css';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import logo from '../assets/logo.jpeg';
 
 const GeoMapApp = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -102,48 +103,71 @@ const GeoMapApp = () => {
     });
   };
 
-  const handleExport = async (type) => {
-  
 
-  if (type === 'Carte') {
-    try {
-      // Cible la div contenant la carte (ajuste si besoin)
-      const mapElement = document.querySelector(`.${styles.leafletContainer}`);
-      const legendElement = document.querySelector(`.${styles.mapLegend}`); // si elle est indépendante
+    const handleExport = async (type) => {
+      if (type === 'Carte') {
+        try {
+          const mapElement = document.getElementById("map-export");
+          if (!mapElement) throw new Error("Carte introuvable dans le DOM");
 
-      // Capture la carte comme image
-      const canvas = await html2canvas(mapElement, { useCORS: true });
-      const imgData = canvas.toDataURL('image/png');
+          window.mapInstanceRef?.invalidateSize();
+          await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'px',
-        format: [canvas.width, canvas.height + 100] // espace pour le titre/légende
-      });
+          const canvas = await html2canvas(mapElement, {
+            useCORS: true,
+            scale: 2
+          });
 
-      // Ajouter un titre
-      pdf.setFontSize(18);
-      pdf.text('Carte des bâtiments menaçant ruine', 20, 30);
+          const imgData = canvas.toDataURL('image/png');
 
-      // Ajouter la carte
-      pdf.addImage(imgData, 'PNG', 20, 50);
+          const marginTop = 80;
+          const marginBottom = 60;
+          const pdfWidth = canvas.width;
+          const pdfHeight = canvas.height + marginTop + marginBottom;
 
-      // Optionnel : ajouter la légende
-      // Tu peux capturer la légende comme une image séparée si besoin
-      // ou générer un bloc statique ici :
-      pdf.setFontSize(12);
-      pdf.text(`Nombre de bâtiments affichés : ${filteredBuildings.length}`, 20, canvas.height + 80);
+          const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'px',
+            format: [pdfWidth, pdfHeight]
+          });
 
-      // Télécharger le PDF
-      pdf.save('carte-batiments.pdf');
-    } catch (error) {
-      console.error("Erreur lors de l'export de la carte :", error);
-      alert("Une erreur s'est produite lors de l'export de la carte.");
-    }
-  } else {
-    alert(`${type} généré avec ${filteredBuildings.length} bâtiments`);
+          // 🖼️ Logo (ajusté à 60x60 px, positionné en haut à droite)
+          const logoImg = new Image();
+          logoImg.src = logo;
+
+          logoImg.onload = () => {
+            const logoWidth = 60;
+            const logoHeight = 60;
+            const paddingRight = 20;
+            const logoX = pdf.internal.pageSize.getWidth() - logoWidth - paddingRight;
+            const logoY = 10;
+            pdf.addImage(logoImg, 'JPEG', logoX, logoY, logoWidth, logoHeight);
+
+            // 🧾 Titre
+            const title = "CLASSIFICATION DES BÂTIMENTS MENAÇANT RUINE EXPERTISÉS";
+            pdf.setFontSize(32);
+            const textWidth = pdf.getTextWidth(title);
+            const x = (pdfWidth - textWidth) / 2;
+            pdf.text(title, x, 50);
+
+            // 🗺️ Carte (image)
+            pdf.addImage(imgData, 'PNG', 0, marginTop, pdfWidth, canvas.height);
+
+            // 🔚 Résumé
+            pdf.setFontSize(14);
+            pdf.text(`Nombre de bâtiments affichés : ${filteredBuildings.length}`, 20, canvas.height + marginTop + 30);
+
+            pdf.save('carte-batiments.pdf');
+          };
+        } catch (error) {
+          console.error("Erreur lors de l'export de la carte :", error);
+          alert("Erreur lors de la génération de la carte.");
+        }
+      } else {
+        alert(`${type} généré avec ${filteredBuildings.length} bâtiments`);
       }
     };
+
 
 
   if (!currentUser) {
@@ -186,9 +210,6 @@ const GeoMapApp = () => {
           <div className={styles.actions}>
             <button onClick={resetFilters} className={styles.resetBtn}>
               <i className="fas fa-undo"></i> Réinitialiser
-            </button>
-            <button onClick={() => handleExport('Rapport')} className={styles.reportBtn}>
-              <i className="fas fa-file-pdf"></i> Générer Rapport
             </button>
             <button onClick={() => handleExport('Carte')} className={styles.exportBtn}>
               <i className="fas fa-download"></i> Exporter Carte
