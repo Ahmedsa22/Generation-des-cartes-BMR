@@ -4,172 +4,276 @@ import StatsCards from './Stats/StatsCards';
 import FiltersSection from './Filtres/FiltersSection';
 import MapContainer from './Map/MapContainer';
 import MapLegend from './legend/MapLegend';
-import buildingsData from './buildingsData'; 
 import styles from './GeoMapApp.module.css';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import logo from '../assets/logo.jpeg';
 
 const GeoMapApp = () => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [filteredBuildings, setFilteredBuildings] = useState([...buildingsData.features]);
+  const [mapType, setMapType] = useState('ratissage');
+  const [geoJsonData, setGeoJsonData] = useState(null);
+  const [fileName, setFileName] = useState('');
+  const [filteredBuildings, setFilteredBuildings] = useState([]);
+  
+  // Nouveaux états pour la nouvelle approche d'exportation
+  const [uploadedMapImage, setUploadedMapImage] = useState(null);
+  const [uploadedImageFileName, setUploadedImageFileName] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  
+  // Nouvel état pour le mode plein écran de la carte
+  const [isMapFullScreen, setIsMapFullScreen] = useState(false);
 
+  // État pour gérer les filtres des deux modes
   const [filters, setFilters] = useState({
-    expertiseClasse: [],
-    facteursDegradation: [],
-    risquePassage: [],
-    evacuation: [],
-    isValide: '',
-    startDate: '',
-    endDate: ''
-  });
-
-  useEffect(() => {
-    applyFilters();
-  }, [filters]);
-
-  const applyFilters = () => {
-    const filtered = buildingsData.features.filter(feature => {
-      const props = feature.properties;
-
-      // Classe d'expertise
-      if (
-        filters.expertiseClasse.length > 0 &&
-        !filters.expertiseClasse.includes(props["Expertise_classe"])
-      ) return false;
-
-      // Facteurs de dégradation
-      if (
-            filters.facteursDegradation.length > 0
-          ) {
-            const raw = props["Expertise_facteur_degradation"] || '';
-            const valuesInField = raw.split(',').map(v => v.trim());
-
-            const found = filters.facteursDegradation.some(filterValue =>
-              valuesInField.includes(filterValue)
-            );
-
-            if (!found) return false;
-          }
-
-
-      // Risque de passage
-      if (
-        filters.risquePassage.length > 0 &&
-        !filters.risquePassage.includes(props["Expertise_risque_passage"])
-      ) return false;
-
-      // Évacuation
-      if (
-        filters.evacuation.length > 0 &&
-        !filters.evacuation.includes(props["Expertise_evacuation"])
-      ) return false;
-
-      // Accessibilité
-      if (
-        filters.isValide &&
-        props["Expertise_is_valide"] !== filters.isValide
-      ) return false;
-
-      // Plage de dates
-      const dateStr = props["Expertise_date d'expertise"];
-      const expertiseDate = dateStr
-        ? new Date(dateStr.split('/').reverse().join('-')) // "dd/mm/yyyy" → "yyyy-mm-dd"
-        : null;
-
-      const start = filters.startDate ? new Date(filters.startDate) : null;
-      const end = filters.endDate ? new Date(filters.endDate) : null;
-
-      if (expertiseDate) {
-        if (start && expertiseDate < start) return false;
-        if (end && expertiseDate > end) return false;
-      }
-
-      return true;
-    });
-
-    setFilteredBuildings(filtered);
-  };
-
-  const resetFilters = () => {
-    setFilters({
+    expertise: {
       expertiseClasse: [],
       facteursDegradation: [],
       risquePassage: [],
       evacuation: [],
-      isValide: '',
+      isValide: [],
       startDate: '',
       endDate: ''
-    });
+    },
+    ratissage: {
+      secteurSearch: '',
+      occupation: [],
+      statutOccupation: [],
+      foncier: [],
+      typeUsage: [],
+      classification: [],
+      startDate: '',
+      endDate: ''
+    }
+  });
+
+  const handleFiltersChange = (newFilters) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [mapType]: newFilters
+    }));
   };
 
+  const applyFilters = () => {
+    if (!geoJsonData || !geoJsonData.features) {
+      setFilteredBuildings([]);
+      return;
+    }
 
-    const handleExport = async (type) => {
-      if (type === 'Carte') {
+    const currentFilters = filters[mapType];
+    const filtered = geoJsonData.features.filter(feature => {
+      const props = feature.properties;
+
+      // Logique de filtrage par date
+      const dateStr = mapType === 'expertise' ? props["date d'expertise"] : props["date_enquete"];
+      const buildingDate = dateStr ? new Date(dateStr.split('/').reverse().join('-')) : null;
+      const start = currentFilters.startDate ? new Date(currentFilters.startDate) : null;
+      const end = currentFilters.endDate ? new Date(currentFilters.endDate) : null;
+
+      if (buildingDate) {
+        if (start && buildingDate < start) return false;
+        if (end && buildingDate > end) return false;
+      }
+
+      if (mapType === 'expertise') {
+        // Logique de filtre pour le mode 'expertise'
+        if (currentFilters.expertiseClasse.length > 0 && !currentFilters.expertiseClasse.includes(props["classe"])) return false;
+        if (currentFilters.facteursDegradation.length > 0) {
+          const raw = props["facteur_degradation"] || '';
+          const valuesInField = raw.split(',').map(v => v.trim());
+          const found = currentFilters.facteursDegradation.some(filterValue => valuesInField.includes(filterValue));
+          if (!found) return false;
+        }
+        if (currentFilters.risquePassage.length > 0 && !currentFilters.risquePassage.includes(props["risque_passage"])) return false;
+        if (currentFilters.evacuation.length > 0 && !currentFilters.evacuation.includes(props["evacuation"])) return false;
+        if (currentFilters.isValide.length > 0 && !currentFilters.isValide.includes(props["is_valide"])) return false;
+      } else if (mapType === 'ratissage') {
+        // Logique de filtre pour le mode 'ratissage'
+        const secteurQuartier = props["Secteur/Quartier"] || '';
+        if (currentFilters.secteurSearch && !secteurQuartier.toLowerCase().includes(currentFilters.secteurSearch.toLowerCase())) {
+          return false;
+        }
+
+        if (currentFilters.occupation.length > 0 && !currentFilters.occupation.includes(props["occupation_batiment"])) {
+          return false;
+        }
+
+        if (currentFilters.statutOccupation.length > 0) {
+          const raw = props["statut_occupation"] || '';
+          const valuesInField = raw.split(',').map(v => v.trim());
+          const found = currentFilters.statutOccupation.some(filterValue => valuesInField.includes(filterValue));
+          if (!found) return false;
+        }
+
+        if (currentFilters.foncier.length > 0 && !currentFilters.foncier.includes(props["foncier"])) {
+          return false;
+        }
+
+        if (currentFilters.typeUsage.length > 0 && !currentFilters.typeUsage.includes(props["type_usage"])) {
+          return false;
+        }
+
+        if (currentFilters.classification.length > 0 && !currentFilters.classification.includes(props["classification"])) {
+          return false;
+        }
+      }
+      return true;
+    });
+    setFilteredBuildings(filtered);
+  };
+
+  useEffect(() => {
+    applyFilters();
+  }, [filters, geoJsonData, mapType]);
+
+  const resetFilters = () => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [mapType]: {
+        ...prevFilters[mapType],
+        ...Object.keys(prevFilters[mapType]).reduce((acc, key) => {
+          acc[key] = Array.isArray(prevFilters[mapType][key]) ? [] : '';
+          return acc;
+        }, {})
+      }
+    }));
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (e) => {
         try {
-          const mapElement = document.getElementById("map-export");
-          if (!mapElement) throw new Error("Carte introuvable dans le DOM");
+          const data = JSON.parse(e.target.result);
+          if (data && data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+            setGeoJsonData(data);
+            setFilteredBuildings(data.features);
+          } else {
+            console.error("Le fichier n'est pas un GeoJSON valide de type FeatureCollection.");
+            setGeoJsonData(null);
+            setFileName('');
+          }
+        } catch (error) {
+          console.error("Erreur lors du parsing du fichier JSON :", error);
+          setGeoJsonData(null);
+          setFileName('');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
 
-          window.mapInstanceRef?.invalidateSize();
-          await new Promise(resolve => setTimeout(resolve, 1000));
+  // Gestion du téléchargement de l'image de la carte
+  const handleMapImageChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setUploadedMapImage(file);
+      setUploadedImageFileName(file.name);
+    }
+  };
 
-          const canvas = await html2canvas(mapElement, {
-            useCORS: true,
-            scale: 2
+  // Nouvelle fonction pour l'exportation du PDF
+  const handleExport = async (type) => {
+    if (type !== 'Carte' || isExporting) {
+      return;
+    }
+
+    if (!uploadedMapImage) {
+      // Utilisez une alerte modale personnalisée si possible
+      alert("Veuillez d'abord télécharger une image de carte.");
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const uploadedImgDataUrl = e.target.result;
+
+        const img = new Image();
+        img.src = uploadedImgDataUrl;
+
+        img.onload = async () => {
+          const imgWidth = img.width;
+          const imgHeight = img.height;
+
+          // Créer une promesse pour le chargement du logo
+          const logoImagePromise = new Promise((resolve, reject) => {
+            const logoImg = new Image();
+            logoImg.crossOrigin = 'anonymous';
+            logoImg.onload = () => resolve(logoImg);
+            logoImg.onerror = () => reject(new Error("Le logo n'a pas pu être chargé."));
+            logoImg.src = logo;
           });
 
-          const imgData = canvas.toDataURL('image/png');
+          const logoImg = await logoImagePromise;
 
-          const marginTop = 80;
-          const marginBottom = 60;
-          const pdfWidth = canvas.width;
-          const pdfHeight = canvas.height + marginTop + marginBottom;
-
-          const pdf = new jsPDF({
+          const doc = new jsPDF({
             orientation: 'landscape',
             unit: 'px',
-            format: [pdfWidth, pdfHeight]
+            format: [imgWidth, imgHeight + 140],
           });
 
-          // 🖼️ Logo (ajusté à 60x60 px, positionné en haut à droite)
-          const logoImg = new Image();
-          logoImg.src = logo;
+          const logoWidth = 60;
+          const logoHeight = 60;
+          const paddingRight = 20;
+          const logoX = doc.internal.pageSize.getWidth() - logoWidth - paddingRight;
+          const logoY = 10;
+          doc.addImage(logoImg, 'JPEG', logoX, logoY, logoWidth, logoHeight);
 
-          logoImg.onload = () => {
-            const logoWidth = 60;
-            const logoHeight = 60;
-            const paddingRight = 20;
-            const logoX = pdf.internal.pageSize.getWidth() - logoWidth - paddingRight;
-            const logoY = 10;
-            pdf.addImage(logoImg, 'JPEG', logoX, logoY, logoWidth, logoHeight);
+          const title = mapType === 'expertise'
+            ? "CLASSIFICATION DES BÂTIMENTS MENAÇANT RUINE EXPERTISÉS"
+            : "CARTE DE RATISSAGE DES BÂTIMENTS";
 
-            // 🧾 Titre
-            const title = "CLASSIFICATION DES BÂTIMENTS MENAÇANT RUINE EXPERTISÉS";
-            pdf.setFontSize(32);
-            const textWidth = pdf.getTextWidth(title);
-            const x = (pdfWidth - textWidth) / 2;
-            pdf.text(title, x, 50);
+          doc.setFontSize(32);
+          const textWidth = doc.getTextWidth(title);
+          const x = (doc.internal.pageSize.getWidth() - textWidth) / 2;
+          doc.text(title, x, 50);
 
-            // 🗺️ Carte (image)
-            pdf.addImage(imgData, 'PNG', 0, marginTop, pdfWidth, canvas.height);
+          // Ajoute l'image de la carte téléchargée
+          doc.addImage(uploadedImgDataUrl, 'PNG', 0, 80, imgWidth, imgHeight);
 
-            // 🔚 Résumé
-            pdf.setFontSize(14);
-            pdf.text(`Nombre de bâtiments affichés : ${filteredBuildings.length}`, 20, canvas.height + marginTop + 30);
+          // Ajoute la légende
+          doc.setFontSize(14);
+          let y = imgHeight + 90;
+          doc.text(`Nombre de bâtiments affichés : ${filteredBuildings.length}`, 20, y);
+          y += 20;
 
-            pdf.save('carte-batiments.pdf');
-          };
-        } catch (error) {
-          console.error("Erreur lors de l'export de la carte :", error);
-          alert("Erreur lors de la génération de la carte.");
-        }
-      } else {
-        alert(`${type} généré avec ${filteredBuildings.length} bâtiments`);
-      }
-    };
+          if (mapType === 'expertise') {
+            doc.text('Légende:', 20, y);
+            y += 20;
+            const colors = {
+              'Classe A': '#6A3E92', 'Classe B': '#D45C5C', 'Classe C': '#F5A962', 'Classe D': '#B5C4D9', 'Classe E': '#6A7D9D',
+            };
+            Object.keys(colors).forEach(key => {
+              doc.setFillColor(colors[key]);
+              doc.rect(20, y, 10, 10, 'F');
+              doc.text(key, 35, y + 8);
+              y += 15;
+            });
+          }
 
+          doc.save('carte-batiments.pdf');
+          setIsExporting(false);
+        };
+      };
+      reader.readAsDataURL(uploadedMapImage);
+    } catch (error) {
+      console.error("Erreur lors de l'export de la carte :", error);
+      // Utilisez une alerte modale personnalisée si possible
+      alert(`Une erreur est survenue lors de l'exportation : ${error.message}. Veuillez réessayer.`);
+      setIsExporting(false);
+    }
+  };
+  
+  // Fonction pour basculer en mode plein écran
+  const toggleMapFullScreen = () => {
+    setIsMapFullScreen(!isMapFullScreen);
+  };
 
-
+  // Si l'utilisateur n'est pas connecté, afficher l'écran de connexion
   if (!currentUser) {
     return (
       <div className={styles.loginScreen}>
@@ -184,6 +288,26 @@ const GeoMapApp = () => {
     );
   }
 
+  // Si la carte est en mode plein écran, afficher un rendu minimaliste
+  if (isMapFullScreen) {
+    return (
+      <div className={styles.app}>
+        {/* Bouton pour sortir du mode plein écran */}
+        <button onClick={toggleMapFullScreen} className={styles.fullscreenExitBtn}>
+          <i className="fas fa-times"></i> Fermer
+        </button>
+        {/* Le conteneur de la carte est en mode plein écran */}
+        <MapContainer
+          buildings={filteredBuildings}
+          mapType={mapType}
+          onMapClick={toggleMapFullScreen}
+          isFullScreen={true}
+        />
+      </div>
+    );
+  }
+
+  // Rendu normal de l'application
   return (
     <div className={styles.app}>
       <div className={styles.container}>
@@ -204,20 +328,71 @@ const GeoMapApp = () => {
         </div>
 
         <div className={styles.content}>
+          <div className={styles.mapTypeSelector}>
+            <label htmlFor="map-type">Type de carte :</label>
+            <select id="map-type" value={mapType} onChange={(e) => setMapType(e.target.value)}>
+              <option value="expertise">Cartes d'expertise</option>
+              <option value="ratissage">Carte de ratissage</option>
+            </select>
+          </div>
+
           <StatsCards buildings={filteredBuildings} />
-          <FiltersSection filters={filters} onFiltersChange={setFilters} />
+
+          <div className={styles.uploadSection}>
+            <h2 className={styles.sectionTitle}><i className="fas fa-upload"></i> Charger un fichier GeoJSON</h2>
+            <input
+              type="file"
+              id="geojson-upload"
+              className={styles.fileInput}
+              accept=".geojson,.json"
+              onChange={handleFileChange}
+            />
+            <label htmlFor="geojson-upload" className={styles.fileLabel}>
+              <i className="fas fa-folder-open"></i> Choisir un fichier...
+            </label>
+            {fileName && <span className={styles.fileName}>{fileName}</span>}
+          </div>
+
+          {/* Nouvelle section pour le téléchargement de l'image */}
+          <div className={styles.uploadSection}>
+            <h2 className={styles.sectionTitle}><i className="fas fa-camera"></i> Télécharger l'image de la carte</h2>
+            <p className={styles.description}>Prenez une capture d'écran de votre carte, puis téléchargez-la ici.</p>
+            <input
+              type="file"
+              id="map-image-upload"
+              className={styles.fileInput}
+              accept="image/*"
+              onChange={handleMapImageChange}
+            />
+            <label htmlFor="map-image-upload" className={styles.fileLabel}>
+              <i className="fas fa-image"></i> Choisir une image...
+            </label>
+            {uploadedImageFileName && <span className={styles.fileName}>{uploadedImageFileName}</span>}
+          </div>
+
+          <FiltersSection
+            filters={filters[mapType]}
+            onFiltersChange={handleFiltersChange}
+            mapType={mapType}
+          />
 
           <div className={styles.actions}>
             <button onClick={resetFilters} className={styles.resetBtn}>
-              <i className="fas fa-undo"></i> Réinitialiser
+              <i className="fas fa-undo"></i> Réinitialiser les filtres
             </button>
-            <button onClick={() => handleExport('Carte')} className={styles.exportBtn}>
-              <i className="fas fa-download"></i> Exporter Carte
+            <button onClick={() => handleExport('Carte')} className={styles.exportBtn} disabled={!uploadedMapImage || isExporting}>
+              {isExporting ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-download"></i>} Exporter la carte
             </button>
           </div>
-
-          <MapContainer buildings={filteredBuildings} />
-          <MapLegend />
+          
+          {/* Le conteneur de la carte est en mode normal */}
+          <MapContainer
+            buildings={filteredBuildings}
+            mapType={mapType}
+            onMapClick={toggleMapFullScreen}
+            isFullScreen={false}
+          />
+          {mapType === 'expertise' && <MapLegend />}
         </div>
       </div>
     </div>
